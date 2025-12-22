@@ -9,7 +9,5 @@ runs:
 
     - name: Run Reset Script
       run: |
-        ls -al
-        pwd
         . ${GITHUB_ACTION_PATH}/main.sh
-      shell: sh
+      shell: bash
