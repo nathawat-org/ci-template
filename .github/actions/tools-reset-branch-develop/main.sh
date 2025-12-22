@@ -6,7 +6,7 @@ for f in ${GITHUB_ACTION_PATH}/../utils/*.sh; do source "$f"; done
 check_and_install_tool "jq"
 
 # Configuration
-ORG_NAME="myorder-intelligence" 
+ORG_NAME="nathawat-org" 
 API_URL="https://api.github.com"
 # Name of the file containing repos to skip
 EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
