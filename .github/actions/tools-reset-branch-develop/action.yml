@@ -10,3 +10,4 @@ runs:
     - name: Run Reset Script
       run: |
         . ${GITHUB_ACTION_PATH}/main.sh
+      shell: sh
