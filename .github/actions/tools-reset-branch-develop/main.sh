@@ -1,5 +1,5 @@
 #!/bin/bash
-
+echo "main.sh started!"
 # ============ CONFIG ============
 for f in ${GITHUB_ACTION_PATH}/../utils/*.sh; do source "$f"; done
 
