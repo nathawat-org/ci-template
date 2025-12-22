@@ -1,0 +1,20 @@
+name: Workflows Tools Script
+
+on:
+  workflow_dispatch:
+
+run-name: Run Workflows Script - Reset Branch Develop by ${{ github.actor }}
+
+jobs:
+  refactor-codebase:
+    name: Reset Branch Develop
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Reset Branch Develop Action
+        uses: nathawat-org/ci-template/.github/actions/tools-reset-branch-develop@master
+        env:
+          TOKEN_GITHUB_PURGE_BRANCH: ${{ secrets.TOKEN_GITHUB_PURGE_BRANCH }}
