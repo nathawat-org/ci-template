@@ -1,0 +1,12 @@
+name: Reset branch develop
+description: Delete and recreate branch develop from branch master.
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Run Reset Script
+      run: |
+        . ${GITHUB_ACTION_PATH}/main.sh
