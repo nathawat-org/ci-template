@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "main.sh started!"
+
 # ============ CONFIG ============
 for f in ${GITHUB_ACTION_PATH}/../utils/*.sh; do source "$f"; done
 
@@ -8,7 +8,6 @@ check_and_install_tool "jq"
 # Configuration
 ORG_NAME="nathawat-org" 
 API_URL="https://api.github.com"
-# Name of the file containing repos to skip
 EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
 
 # ---------------------------------------------------------
@@ -18,27 +17,20 @@ EXCLUDED_REPOS=()
 
 if [ -f "$EXCLUDE_FILE" ]; then
     show_logs "INFO" "Loading exclusion list from '$EXCLUDE_FILE'..."
-    
-    # Read file line by line
     while IFS= read -r line || [ -n "$line" ]; do
-        # Trim whitespace
         line=$(echo "$line" | xargs)
-        
-        # Skip empty lines and lines starting with #
         if [ -n "$line" ] && [[ ! "$line" =~ ^# ]]; then
             EXCLUDED_REPOS+=("$line")
         fi
     done < "$EXCLUDE_FILE"
-    
     show_logs "INFO" "Loaded ${#EXCLUDED_REPOS[@]} repositories to exclude."
 else
-    show_logs "WARN" "Exclusion file '$EXCLUDE_FILE' not found. No repos will be skipped."
+    show_logs "WARN" "Exclusion file not found."
 fi
 
 # ---------------------------------------------------------
 # Safety Checks
 # ---------------------------------------------------------
-
 if [ -z "$TOKEN_GITHUB_PURGE_BRANCH" ]; then
   show_logs "ERROR" "TOKEN_GITHUB_PURGE_BRANCH is not set."
   exit 1
@@ -62,10 +54,7 @@ while :; do
     fi
 
     current_batch=$(echo "$response" | jq -r '.[].name')
-
-    if [ -z "$current_batch" ] || [ "$current_batch" == "null" ]; then
-        break
-    fi
+    if [ -z "$current_batch" ] || [ "$current_batch" == "null" ]; then break; fi
 
     repos="$repos $current_batch"
     ((page++))
@@ -82,9 +71,7 @@ show_logs "INFO" "------------------------------------------------"
 for repo in "${repo_list[@]}"; do
     show_logs "INFO" "Processing: $repo"
 
-    # -----------------------------------------------------
-    # CHECK EXCLUSION LIST (Loaded from .txt)
-    # -----------------------------------------------------
+    # --- 1. CHECK EXCLUSION LIST ---
     skip_repo=false
     for excluded in "${EXCLUDED_REPOS[@]}"; do
         if [[ "$repo" == "$excluded" ]]; then
@@ -99,31 +86,22 @@ for repo in "${repo_list[@]}"; do
         continue
     fi
 
-    # -----------------------------------------------------
-    # Step 2: Delete branch 'develop'
-    # -----------------------------------------------------
-    show_logs "INFO" "    > Deleting 'develop'..."
-    delete_response=$(curl -s -X DELETE \
-        -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
-        -H "Accept: application/vnd.github.v3+json" \
-        "$API_URL/repos/$ORG_NAME/$repo/git/refs/heads/develop")
+    # --- 2. GET 'develop' SHA (And check existence) ---
+    develop_sha=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
+        "$API_URL/repos/$ORG_NAME/$repo/git/refs/heads/develop" | jq -r '.object.sha')
 
-    if echo "$delete_response" | grep -q "Reference does not exist"; then
-        show_logs "WARN" "      (Note: 'develop' did not exist, proceeding to create)"
-    elif echo "$delete_response" | grep -q "message"; then
-        show_logs "WARN" "      ! WARNING: Could not delete 'develop'. Message: $(echo $delete_response | jq -r .message)"
-    else
-        show_logs "INFO" "      Success: 'develop' deleted."
+    if [ "$develop_sha" == "null" ] || [ -z "$develop_sha" ]; then
+        show_logs "WARN" "    ! SKIP: Repo does not have a 'develop' branch."
+        show_logs "INFO" "------------------------------------------------"
+        continue
     fi
 
-    # -----------------------------------------------------
-    # Step 3: Create branch 'develop' from 'master' or 'main'
-    # -----------------------------------------------------
-    
+    # --- 3. GET 'master' OR 'main' SHA ---
     source_branch="master"
     master_sha=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
         "$API_URL/repos/$ORG_NAME/$repo/git/refs/heads/master" | jq -r '.object.sha')
 
+    # If 'master' is null, try 'main'
     if [ "$master_sha" == "null" ] || [ -z "$master_sha" ]; then
         source_branch="main"
         master_sha=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
@@ -131,12 +109,36 @@ for repo in "${repo_list[@]}"; do
     fi
 
     if [ "$master_sha" == "null" ] || [ -z "$master_sha" ]; then
-        show_logs "WARN" "      ! SKIP: Could not find 'master' OR 'main'. Skipping."
+        show_logs "WARN" "    ! SKIP: Could not find 'master' OR 'main'."
         continue
     fi
 
-    show_logs "INFO" "      > Retrieved '$source_branch' SHA: ${master_sha:0:7}"
+    # --- 4. COMPARE SHAs (The New Check) ---
+    if [ "$develop_sha" == "$master_sha" ]; then
+        show_logs "INFO" "    > 'develop' is already identical to '$source_branch' ($develop_sha)."
+        show_logs "INFO" "    > SKIPPING reset."
+        show_logs "INFO" "------------------------------------------------"
+        continue
+    fi
+    
+    show_logs "INFO" "    > DETECTED DRIFT: 'develop' ($develop_sha) != '$source_branch' ($master_sha)"
 
+    # --- 5. DELETE 'develop' ---
+    show_logs "INFO" "    > Deleting old 'develop'..."
+    delete_response=$(curl -s -X DELETE \
+        -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "$API_URL/repos/$ORG_NAME/$repo/git/refs/heads/develop")
+
+    if echo "$delete_response" | grep -q "message"; then
+        # If delete failed unexpectedly
+        if ! echo "$delete_response" | grep -q "Reference does not exist"; then
+             show_logs "WARN" "      ! WARNING: Delete failed: $(echo $delete_response | jq -r .message)"
+        fi
+    fi
+
+    # --- 6. CREATE 'develop' ---
+    show_logs "INFO" "    > Recreating 'develop' from '$source_branch'..."
     create_response=$(curl -s -X POST \
         -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
         -H "Accept: application/vnd.github.v3+json" \
@@ -144,7 +146,7 @@ for repo in "${repo_list[@]}"; do
         "$API_URL/repos/$ORG_NAME/$repo/git/refs")
 
     if echo "$create_response" | jq -r .ref | grep -q "develop"; then
-        show_logs "INFO" "      Success: 'develop' created/reset from '$source_branch'."
+        show_logs "INFO" "      Success: 'develop' reset complete."
     else
         show_logs "ERROR" "      ! ERROR: Failed to create 'develop'."
         show_logs "ERROR" "      API Response: $create_response"
