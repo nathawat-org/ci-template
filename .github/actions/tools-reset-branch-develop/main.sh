@@ -113,13 +113,12 @@ get_rate_limit() {
     grep -i "^x-ratelimit-remaining:" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r'
 }
 
-# --- NEW FUNCTION: Check Difference Details ---
-log_divergence_details() {
+# --- UPDATED: Now acts as the Decision Maker ---
+check_divergence_and_log() {
     local repo=$1
     local base=$2 # master/main
     local head=$3 # develop
 
-    # API: Compare two commits/branches
     local url="$API_URL/repos/$ORG_NAME/$repo/compare/$base...$head"
     local response=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" "$url")
     
@@ -128,6 +127,12 @@ log_divergence_details() {
     local behind_by=$(echo "$response" | jq -r '.behind_by')
 
     show_logs "INFO" "    > DIFF CHECK: Status='$status' (Ahead: $ahead_by, Behind: $behind_by)"
+
+    # LOGIC: If identical, return 1 (Stop). Else return 0 (Proceed).
+    if [ "$status" == "identical" ]; then
+        return 1
+    fi
+    return 0
 }
 
 delete_branch() {
@@ -202,16 +207,16 @@ process_repo() {
         return 0
     fi
 
-    if [ "$develop_sha" == "$source_sha" ]; then
-        show_logs "INFO" "    > 'develop' is identical to '$source_branch'. No action needed."
+    # --- OLD CHECK REMOVED ---
+    # if [ "$develop_sha" == "$source_sha" ]; then ... fi
+
+    # --- NEW LOGIC: Use API Comparison ---
+    # If check_divergence_and_log returns 1 (identical), we stop here.
+    if ! check_divergence_and_log "$repo" "$source_branch" "develop"; then
+        show_logs "INFO" "    > Branches are identical. No action needed."
         echo "------------------------------------------------"
         return 0
     fi
-
-    show_logs "INFO" "    > DETECTED DRIFT: 'develop' != '$source_branch'"
-    
-    # --- CALL NEW LOGGING FUNCTION HERE ---
-    log_divergence_details "$repo" "$source_branch" "develop"
 
     # --- EXECUTION CHAIN ---
     backup_old_develop "$repo" "$develop_sha" || return
