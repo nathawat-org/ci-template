@@ -15,14 +15,14 @@ else
 fi
 
 # Configuration
-ORG_NAME="nathawat-org" 
+ORG_NAME="myorder-intelligence" 
 API_URL="https://api.github.com"
 EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
 SLEEP_DURATION=1      
 SAFETY_DELAY=3        
 
 # Global Variables
-BACKUP_NAME="develop-$(date +%d-%m-%Y)"
+BACKUP_NAME="$(date +%d-%m-%Y)"
 EXCLUDED_REPOS=()
 TMP_HEADERS=$(mktemp)
 TMP_BODY=$(mktemp)
