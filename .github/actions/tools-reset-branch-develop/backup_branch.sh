@@ -10,13 +10,16 @@
 backup_old_develop() {
     local repo=$1
     local sha=$2 # The SHA of the *current* develop branch
-    local backup_ref="refs/heads/$BACKUP_NAME"
+    local short_sha=${sha:0:7}
+    local full_backup_name="$BACKUP_NAME-$short_sha"
+    local backup_ref="refs/heads/$full_backup_name"
+    
 
     # Ensure show_logs exists, fallback to echo if running standalone
     if ! command -v show_logs &> /dev/null; then
-        echo "INFO:    > Backing up 'develop' to '$BACKUP_NAME'..."
+        echo "INFO:    > Backing up 'develop' to '$full_backup_name'..."
     else
-        show_logs "INFO" "    > Backing up 'develop' to '$BACKUP_NAME'..."
+        show_logs "INFO" "    > Backing up 'develop' to '$full_backup_name'..."
     fi
     
     local response=$(curl -s -X POST \
@@ -26,7 +29,7 @@ backup_old_develop() {
         "$API_URL/repos/$ORG_NAME/$repo/git/refs")
 
     # Check Success
-    if echo "$response" | jq -r .ref | grep -q "$BACKUP_NAME"; then
+    if echo "$response" | jq -r .ref | grep -q "$full_backup_name"; then
         if command -v show_logs &> /dev/null; then
              show_logs "INFO" "      Success: Backup created."
         else
@@ -36,9 +39,9 @@ backup_old_develop() {
     # Check if Backup Already Exists (Not an error, just skip)
     elif echo "$response" | grep -q "Reference already exists"; then
         if command -v show_logs &> /dev/null; then
-             show_logs "WARN" "      ! WARNING: Backup branch '$BACKUP_NAME' already exists. Skipping backup."
+             show_logs "WARN" "      ! WARNING: Backup branch '$full_backup_name' already exists. Skipping backup."
         else
-             echo "WARN:      ! WARNING: Backup branch '$BACKUP_NAME' already exists. Skipping backup."
+             echo "WARN:      ! WARNING: Backup branch '$full_backup_name' already exists. Skipping backup."
         fi
         return 0 
     # Handle Errors
