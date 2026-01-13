@@ -6,7 +6,7 @@ if [ -d "${GITHUB_ACTION_PATH}/../utils" ]; then
     for f in ${GITHUB_ACTION_PATH}/../utils/*.sh; do [ -e "$f" ] && . "$f"; done
 fi
 
-# 2. Load Backup Logic (The new file)
+# 2. Load Backup Logic
 if [ -f "${GITHUB_ACTION_PATH}/backup_branch.sh" ]; then
     . "${GITHUB_ACTION_PATH}/backup_branch.sh"
 else
@@ -21,7 +21,7 @@ EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
 SLEEP_DURATION=1      
 SAFETY_DELAY=3        
 
-# Global Variables (Shared with backup_branch.sh)
+# Global Variables
 BACKUP_NAME="develop-$(date +%d-%m-%Y)"
 EXCLUDED_REPOS=()
 TMP_HEADERS=$(mktemp)
@@ -44,7 +44,7 @@ if ! command -v jq &> /dev/null; then
     exit 1
 fi
 
-# ============ LOCAL FUNCTIONS (Getters/Setters) ============
+# ============ LOCAL FUNCTIONS ============
 
 load_exclusion_list() {
     if [ -f "$EXCLUDE_FILE" ]; then
@@ -71,28 +71,19 @@ validate_token() {
 get_all_repos() {
     local page=1
     local repos=()
-    
-    # FIX: Add >&2 to send logs to Stderr (screen) instead of Stdout (variable)
     show_logs "INFO" "Fetching repository list..." >&2
-
     while :; do
         response=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
                        "$API_URL/orgs/$ORG_NAME/repos?per_page=100&page=$page")
-
         if echo "$response" | grep -q "Bad credentials"; then
-            # FIX: Add >&2 here too
             throw "Invalid GitHub Token." >&2
             exit 1
         fi
-
         current_batch=$(echo "$response" | jq -r '.[].name')
         if [ -z "$current_batch" ] || [ "$current_batch" == "null" ]; then break; fi
-
         repos+=($current_batch)
         ((page++))
     done
-    
-    # This is the ONLY thing that should go to Stdout
     echo "${repos[@]}"
 }
 
@@ -120,6 +111,23 @@ get_branch_sha() {
 
 get_rate_limit() {
     grep -i "^x-ratelimit-remaining:" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r'
+}
+
+# --- NEW FUNCTION: Check Difference Details ---
+log_divergence_details() {
+    local repo=$1
+    local base=$2 # master/main
+    local head=$3 # develop
+
+    # API: Compare two commits/branches
+    local url="$API_URL/repos/$ORG_NAME/$repo/compare/$base...$head"
+    local response=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" "$url")
+    
+    local status=$(echo "$response" | jq -r '.status')
+    local ahead_by=$(echo "$response" | jq -r '.ahead_by')
+    local behind_by=$(echo "$response" | jq -r '.behind_by')
+
+    show_logs "INFO" "    > DIFF CHECK: Status='$status' (Ahead: $ahead_by, Behind: $behind_by)"
 }
 
 delete_branch() {
@@ -201,9 +209,11 @@ process_repo() {
     fi
 
     show_logs "INFO" "    > DETECTED DRIFT: 'develop' != '$source_branch'"
+    
+    # --- CALL NEW LOGGING FUNCTION HERE ---
+    log_divergence_details "$repo" "$source_branch" "develop"
 
     # --- EXECUTION CHAIN ---
-    # Call the external function from backup_branch.sh
     backup_old_develop "$repo" "$develop_sha" || return
     
     delete_branch "$repo" "develop" || return
