@@ -99,7 +99,7 @@ for repo in "${repos[@]}"; do
         "$API_URL/repos/$ORG_NAME/$repo/git/refs/heads/develop" > "$TMP_BODY"
 
     # Extract Rate Limit from Headers (Case insensitive grep)
-    rate_limit=$(grep -i "x-ratelimit-remaining" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r')
+    rate_limit=$(grep -i "^x-ratelimit-remaining:" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r')
     
     show_logs "INFO" "Processing: $repo [Quota Left: $rate_limit]"
 
