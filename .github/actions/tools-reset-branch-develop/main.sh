@@ -71,19 +71,28 @@ validate_token() {
 get_all_repos() {
     local page=1
     local repos=()
-    show_logs "INFO" "Fetching repository list..."
+    
+    # FIX: Add >&2 to send logs to Stderr (screen) instead of Stdout (variable)
+    show_logs "INFO" "Fetching repository list..." >&2
+
     while :; do
         response=$(curl -s -H "Authorization: token $TOKEN_GITHUB_PURGE_BRANCH" \
                        "$API_URL/orgs/$ORG_NAME/repos?per_page=100&page=$page")
+
         if echo "$response" | grep -q "Bad credentials"; then
-            throw "Invalid GitHub Token."
+            # FIX: Add >&2 here too
+            throw "Invalid GitHub Token." >&2
             exit 1
         fi
+
         current_batch=$(echo "$response" | jq -r '.[].name')
         if [ -z "$current_batch" ] || [ "$current_batch" == "null" ]; then break; fi
+
         repos+=($current_batch)
         ((page++))
     done
+    
+    # This is the ONLY thing that should go to Stdout
     echo "${repos[@]}"
 }
 
