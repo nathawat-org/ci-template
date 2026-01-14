@@ -176,16 +176,20 @@ create_branch() {
 
 process_repo() {
     local repo=$1
-    
+    local current_idx=$2  # New Argument: Current number
+    local total_count=$3  # New Argument: Total repositories
+
     if is_excluded "$repo"; then
-        show_logs "WARN" "Processing: $repo [SKIPPED - Excluded]"
+        show_logs "WARN" "Processing: $repo ($current_idx/$total_count) [SKIPPED - Excluded]"
         echo "------------------------------------------------"
         return 0
     fi
 
     local develop_sha=$(get_branch_sha "$repo" "develop" "true")
     local rate_limit=$(get_rate_limit)
-    show_logs "INFO" "Processing: $repo [Quota Left: $rate_limit]"
+    
+    # UPDATED LOG LINE
+    show_logs "INFO" "Processing: $repo ($current_idx/$total_count) [Quota Left: $rate_limit]"
 
     if [ "$develop_sha" == "null" ] || [ -z "$develop_sha" ]; then
         show_logs "WARN" "    ! SKIP: Repo does not have a 'develop' branch."
@@ -207,18 +211,12 @@ process_repo() {
         return 0
     fi
 
-    # --- OLD CHECK REMOVED ---
-    # if [ "$develop_sha" == "$source_sha" ]; then ... fi
-
-    # --- NEW LOGIC: Use API Comparison ---
-    # If check_divergence_and_log returns 1 (identical), we stop here.
     if ! check_divergence_and_log "$repo" "$source_branch" "develop"; then
         show_logs "INFO" "    > Branches are identical. No action needed."
         echo "------------------------------------------------"
         return 0
     fi
 
-    # --- EXECUTION CHAIN ---
     backup_old_develop "$repo" "$develop_sha" || return
     
     delete_branch "$repo" "develop" || return
@@ -239,11 +237,20 @@ load_exclusion_list
 repo_list_string=$(get_all_repos)
 IFS=' ' read -r -a repo_array <<< "$repo_list_string"
 
-show_logs "INFO" "Found ${#repo_array[@]} repositories total."
+# Get Total Count
+total_repos=${#repo_array[@]}
+current_count=0
+
+show_logs "INFO" "Found $total_repos repositories total."
 show_logs "INFO" "------------------------------------------------"
 
 for repo in "${repo_array[@]}"; do
-    process_repo "$repo"
+    # Increment counter
+    ((current_count++))
+    
+    # Pass repo, current_count, and total_repos to the function
+    process_repo "$repo" "$current_count" "$total_repos"
+    
     sleep $SLEEP_DURATION
 done
 
