@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '27 13 * * 3'
 
-run-name: Run Workflows Script - Reset Branch Develop by ${{ github.actor }}
+run-name: Run Workflows Script - Reset Branch Develop by schedule
 
 jobs:
   refactor-codebase:
