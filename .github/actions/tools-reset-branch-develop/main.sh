@@ -261,12 +261,12 @@ show_logs "INFO" "------------------------------------------------"
 
 for repo in "${repo_array[@]}"; do
     # Increment counter
-    ((current_count++))
+    # ((current_count++))
     
     # Pass repo, current_count, and total_repos to the function
-    # process_repo "$repo" "$current_count" "$total_repos"
+    process_repo "$repo" "$current_count" "$total_repos"
     
-    # sleep $SLEEP_DURATION
+    sleep $SLEEP_DURATION
 done
 
 show_logs "INFO" "--- BATCH PROCESS COMPLETE ---"
