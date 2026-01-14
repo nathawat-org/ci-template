@@ -110,7 +110,11 @@ get_branch_sha() {
 }
 
 get_rate_limit() {
-    grep -i "^x-ratelimit-remaining:" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r'
+    if [ -f "$TMP_HEADERS" ]; then
+        grep -i "^x-ratelimit-remaining:" "$TMP_HEADERS" | awk '{print $2}' | tr -d '\r' || echo "N/A"
+    else
+        echo "N/A"
+    fi
 }
 
 # --- UPDATED: Now acts as the Decision Maker ---
@@ -176,21 +180,30 @@ create_branch() {
 
 process_repo() {
     local repo=$1
-    local current_idx=$2  # New Argument: Current number
-    local total_count=$3  # New Argument: Total repositories
+    local current_idx=$2
+    local total_count=$3
 
+    # DEBUG: Confirm function entry
+    # echo "DEBUG: Starting $repo ($current_idx/$total_count)"
+
+    # 1. Check Exclusion (Wrapped in if to handle return 1 gracefully)
     if is_excluded "$repo"; then
         show_logs "WARN" "Processing: $repo ($current_idx/$total_count) [SKIPPED - Excluded]"
         echo "------------------------------------------------"
         return 0
     fi
 
-    local develop_sha=$(get_branch_sha "$repo" "develop" "true")
-    local rate_limit=$(get_rate_limit)
+    # 2. Get Develop SHA
+    local develop_sha
+    develop_sha=$(get_branch_sha "$repo" "develop" "true")
     
-    # UPDATED LOG LINE
+    # 3. Get Rate Limit (Safe)
+    local rate_limit
+    rate_limit=$(get_rate_limit)
+
     show_logs "INFO" "Processing: $repo ($current_idx/$total_count) [Quota Left: $rate_limit]"
 
+    # 4. Validation Checks
     if [ "$develop_sha" == "null" ] || [ -z "$develop_sha" ]; then
         show_logs "WARN" "    ! SKIP: Repo does not have a 'develop' branch."
         echo "------------------------------------------------"
@@ -198,7 +211,8 @@ process_repo() {
     fi
 
     local source_branch="master"
-    local source_sha=$(get_branch_sha "$repo" "master" "false")
+    local source_sha
+    source_sha=$(get_branch_sha "$repo" "master" "false")
 
     if [ "$source_sha" == "null" ] || [ -z "$source_sha" ]; then
         source_branch="main"
@@ -211,14 +225,15 @@ process_repo() {
         return 0
     fi
 
+    # 5. Divergence Check
     if ! check_divergence_and_log "$repo" "$source_branch" "develop"; then
         show_logs "INFO" "    > Branches are identical. No action needed."
         echo "------------------------------------------------"
         return 0
     fi
 
+    # 6. Execution
     backup_old_develop "$repo" "$develop_sha" || return
-    
     delete_branch "$repo" "develop" || return
     
     show_logs "INFO" "      ... Waiting ${SAFETY_DELAY}s for consistency ..."
