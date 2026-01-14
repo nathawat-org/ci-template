@@ -6,16 +6,8 @@ if [ -d "${GITHUB_ACTION_PATH}/../utils" ]; then
     for f in ${GITHUB_ACTION_PATH}/../utils/*.sh; do [ -e "$f" ] && . "$f"; done
 fi
 
-# 2. Load Backup Logic
-if [ -f "${GITHUB_ACTION_PATH}/backup_branch.sh" ]; then
-    . "${GITHUB_ACTION_PATH}/backup_branch.sh"
-else
-    echo "ERROR: backup_branch.sh not found!"
-    exit 1
-fi
-
 # Configuration
-ORG_NAME="nathawat-org" 
+ORG_NAME="myorder-intelligence" 
 API_URL="https://api.github.com"
 EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
 SLEEP_DURATION=1      
