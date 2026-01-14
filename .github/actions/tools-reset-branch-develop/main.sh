@@ -261,7 +261,7 @@ show_logs "INFO" "------------------------------------------------"
 
 for repo in "${repo_array[@]}"; do
     # Increment counter
-    # ((current_count++))
+    current_count=$((current_count + 1))
     
     # Pass repo, current_count, and total_repos to the function
     process_repo "$repo" "$current_count" "$total_repos"
