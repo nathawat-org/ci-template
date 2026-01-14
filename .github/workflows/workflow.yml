@@ -2,7 +2,7 @@ name: Workflows Tools Script
 
 on:
   schedule:
-    - cron: '0 5 * * 3'
+    - cron: '5 13 * * 3'
 
 run-name: Run Workflows Script - Reset Branch Develop by ${{ github.actor }}
 
