@@ -184,7 +184,7 @@ process_repo() {
     local total_count=$3
 
     # DEBUG: Confirm function entry
-    # echo "DEBUG: Starting $repo ($current_idx/$total_count)"
+    show_logs "DEBUG" "Starting $repo ($current_idx/$total_count)"
 
     # 1. Check Exclusion (Wrapped in if to handle return 1 gracefully)
     if is_excluded "$repo"; then
