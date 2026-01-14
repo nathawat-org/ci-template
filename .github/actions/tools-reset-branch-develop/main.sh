@@ -7,7 +7,7 @@ if [ -d "${GITHUB_ACTION_PATH}/../utils" ]; then
 fi
 
 # Configuration
-ORG_NAME="myorder-intelligence" 
+ORG_NAME="nathawat-org" 
 API_URL="https://api.github.com"
 EXCLUDE_FILE="$GITHUB_ACTION_PATH/exclude_list.txt"
 SLEEP_DURATION=1      
