@@ -2,7 +2,7 @@ name: Workflows Tools Script
 
 on:
   schedule:
-    - cron: '10 03 * * *'
+    - cron: '0 04 * * *'
   workflow_dispatch:
 
 run-name: Run Workflows Script - Reset Branch Develop by schedule
@@ -18,6 +18,10 @@ jobs:
 
       - name: Log Start Time
         run: echo "Workflow started at $(date)"
+
+      - name: Log Schedule timeout-minutes
+        run: echo "Workflow should run on 04:00"
+      
 
       - name: Run Reset Branch Develop Action
         uses: nathawat-org/ci-template/.github/actions/tools-reset-branch-develop@master
