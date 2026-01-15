@@ -10,7 +10,7 @@ run-name: Run Workflows Script - Reset Branch Develop by schedule
 jobs:
   refactor-codebase:
     name: Reset Branch Develop
-    runs-on: ubuntu-latest
+    runs-on: local-mac-m1
     
     steps:
       - name: Checkout Repository
