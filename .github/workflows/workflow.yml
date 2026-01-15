@@ -2,7 +2,7 @@ name: Workflows Tools Script
 
 on:
   schedule:
-    - cron: '0 09 * * 3'
+    - cron: '10 03 * * *'
   workflow_dispatch:
 
 run-name: Run Workflows Script - Reset Branch Develop by schedule
