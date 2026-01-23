@@ -59,6 +59,8 @@ jobs:
       - name: Call Slack API
         uses: slackapi/slack-github-action@v2.1.1
         with:
+          errors: true
+          
           # This is the PROOF: We are using the generic API method wrapper
           method: lists.items.create
           
