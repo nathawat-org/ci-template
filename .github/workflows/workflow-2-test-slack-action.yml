@@ -3,7 +3,7 @@ name: Test slack action
 on:
   workflow_dispatch:
 
-run-name: Test create item by slack action
+run-name: Test create item by curl
 
 jobs:
   test_list_creation:
@@ -13,16 +13,14 @@ jobs:
         id: prepare_payload
         shell: bash
         run: |
-          # 1. DEFINE YOUR IDS (From your Postman test)
-          LIST_ID="F0AA302SAAF"
-          TITLE_COL_ID="Col0AACUXTBB6"
+          # 1. DEFINE YOUR IDS
+          LIST_ID="F0A9QFB6M0A"
+          TITLE_COL_ID="Col0A992EB09M"
           
-          # 2. CREATE DYNAMIC CONTENT
           TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
-          MESSAGE="Proof of Concept Test at $TIMESTAMP"
+          MESSAGE="Proof of Concept via CURL at $TIMESTAMP"
 
-          # 3. CONSTRUCT THE JSON
-          # We use jq-like structure manually with cat to ensure valid JSON
+          # 2. CONSTRUCT THE JSON
           PAYLOAD=$(cat <<EOF
           {
             "list_id": "$LIST_ID",
@@ -50,22 +48,12 @@ jobs:
           EOF
           )
 
-          # 4. OUTPUT TO GITHUB ENV
-          # Using delimiter because JSON is multiline
-          echo "payload<<EOF" >> $GITHUB_OUTPUT
-          echo "$PAYLOAD" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          # 3. WRITE PAYLOAD TO A FILE (Safer for curl than env vars)
+          echo "$PAYLOAD" > payload.json
 
-      - name: Call Slack API
-        uses: slackapi/slack-github-action@v2.1.1
-        with:
-          errors: true
-          
-          # This is the PROOF: We are using the generic API method wrapper
-          method: lists.items.create
-          
-          # Your Bot Token (Must be in Repo Secrets)
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          
-          # The JSON we built in the previous step
-          payload: ${{ steps.prepare_payload.outputs.payload }}
+      - name: Send to Slack via CURL
+        run: |
+          curl -X POST https://slack.com/api/lists.items.create \
+            -H "Authorization: Bearer ${{ secrets.SLACK_BOT_TOKEN }}" \
+            -H "Content-Type: application/json; charset=utf-8" \
+            --data @payload.json
