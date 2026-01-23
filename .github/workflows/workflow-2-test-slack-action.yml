@@ -1,0 +1,69 @@
+name: Test slack action
+
+on:
+  workflow_dispatch:
+
+run-name: Test create item by slack action
+
+jobs:
+  test_list_creation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare JSON Payload
+        id: prepare_payload
+        shell: bash
+        run: |
+          # 1. DEFINE YOUR IDS (From your Postman test)
+          LIST_ID="F0AA302SAAF"
+          TITLE_COL_ID="Col0AACUXTBB6"
+          
+          # 2. CREATE DYNAMIC CONTENT
+          TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+          MESSAGE="Proof of Concept Test at $TIMESTAMP"
+
+          # 3. CONSTRUCT THE JSON
+          # We use jq-like structure manually with cat to ensure valid JSON
+          PAYLOAD=$(cat <<EOF
+          {
+            "list_id": "$LIST_ID",
+            "fields": {
+              "$TITLE_COL_ID": {
+                "rich_text": [
+                  {
+                    "type": "rich_text",
+                    "elements": [
+                      {
+                        "type": "rich_text_section",
+                        "elements": [
+                          {
+                            "type": "text",
+                            "text": "$MESSAGE"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+          EOF
+          )
+
+          # 4. OUTPUT TO GITHUB ENV
+          # Using delimiter because JSON is multiline
+          echo "payload<<EOF" >> $GITHUB_OUTPUT
+          echo "$PAYLOAD" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Call Slack API
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          # This is the PROOF: We are using the generic API method wrapper
+          method: lists.items.create
+          
+          # Your Bot Token (Must be in Repo Secrets)
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          
+          # The JSON we built in the previous step
+          payload: ${{ steps.prepare_payload.outputs.payload }}
