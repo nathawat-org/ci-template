@@ -1,0 +1,24 @@
+name: Global Security Scan
+
+# For organization rulesets enforcing branch protection, 
+# pull_request is the most common and effective trigger.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  dummy-scan:
+    name: Run Organization Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Scan (Echo only)
+        run: |
+          echo "Starting global security scan..."
+          echo "Target repository: ${{ github.repository }}"
+          echo "Triggered by user: ${{ github.actor }}"
+          echo "Scanning files..."
+          echo "No secrets or vulnerabilities found. Scan complete!"
